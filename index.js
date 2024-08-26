@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import User from './model/User.js';
+import Restaurant from './model/Restaurant.js';
+import Order from './model/Restaurant.js';
 
 const app = express();
 app.use(express.json()); // To parse JSON request bodies
@@ -18,7 +20,7 @@ mongoose.connect("mongodb+srv://zixinzhang0519:zzx971106@cluster0.avikpsa.mongod
 
 // Register route
 app.post('/register', async (req, res) => {
-	const { first_name, last_name, mobile_no, email, password } = req.body;
+	const { username, mobile_no, email, password } = req.body;
 
 	try {
 		const existingUser = await User.findOne({ email });
@@ -28,8 +30,7 @@ app.post('/register', async (req, res) => {
 
 		const hashedPassword = await bcrypt.hash(password, 10);
 		const user = new User({
-			first_name,
-			last_name,
+			username,
 			mobile_no,
 			email,
 			password: hashedPassword,
@@ -57,7 +58,7 @@ app.post('/login', async (req, res) => {
 			return res.status(400).json({ message: 'Invalid credentials' });
 		} else {
 			const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
-    		return res.json({ token });
+    	return res.json({ token });
 		}
 
 
@@ -93,6 +94,55 @@ app.get('/users', authenticateToken, async (req, res) => {
   }
 });
 
+// Get a user by ID
+app.get('/users/:id', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId).select('-password'); // Exclude the password field
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+
+app.get('/restaurants', authenticateToken, async (req, res) => {
+  try {
+    const restaurants = await Restaurant.find().select(''); // Exclude the password field from the result
+    res.json(restaurants);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+
+// app.post('/restaurants', async (req, res) => {
+// 	const { name,telephone,address,dishes } = req.body;
+
+// 	try {
+// 		const existingRestaurant = await User.findOne({ address });
+// 		if (existingRestaurant) {
+// 			return res.status(400).json({ message: 'Restaurant already exists' });
+// 		}
+
+// 		const restaurant = new Restaurant({
+// 			name,
+// 			telephone,
+// 			address,
+// 			dishes
+// 		});
+
+// 		await restaurant.save();
+// 		res.status(201).json({ message: 'Restaurant registered successfully' });
+// 	} catch (error) {
+// 		res.status(500).json({ message: 'Server error', error });
+// 	}
+// });
 
 
 
