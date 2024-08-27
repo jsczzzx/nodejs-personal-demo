@@ -5,7 +5,7 @@ import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import User from './model/User.js';
 import Restaurant from './model/Restaurant.js';
-import Order from './model/Restaurant.js';
+import Order from './model/Order.js';
 
 const app = express();
 app.use(express.json()); // To parse JSON request bodies
@@ -20,7 +20,7 @@ mongoose.connect("mongodb+srv://zixinzhang0519:zzx971106@cluster0.avikpsa.mongod
 
 // Register route
 app.post('/register', async (req, res) => {
-	const { username, mobile_no, email, password } = req.body;
+	const { userName, mobile_no, email, password } = req.body;
 
 	try {
 		const existingUser = await User.findOne({ email });
@@ -30,7 +30,7 @@ app.post('/register', async (req, res) => {
 
 		const hashedPassword = await bcrypt.hash(password, 10);
 		const user = new User({
-			username,
+			userName,
 			mobile_no,
 			email,
 			password: hashedPassword,
@@ -120,6 +120,29 @@ app.get('/restaurants', authenticateToken, async (req, res) => {
   }
 });
 
+
+app.post('/orders', async (req, res) => {
+	const { userName, restaurantId, restaurantName, items, totalPrice, createdAt, updatedAt, status } = req.body;
+
+	try {
+
+		const order = new Order({
+			userName, 
+			restaurantId, 
+			restaurantName, 
+			items, 
+			totalPrice, 
+			createdAt, 
+			updatedAt, 
+			status
+		});
+
+		await order.save();
+		res.status(201).json({ message: 'Order submitted successfully' });
+	} catch (error) {
+		res.status(500).json({ message: 'Server error', error });
+	}
+});
 
 // app.post('/restaurants', async (req, res) => {
 // 	const { name,telephone,address,dishes } = req.body;
