@@ -2,11 +2,16 @@ import mongoose from 'mongoose';
 const { Schema, model } = mongoose;
 import dishSchema from './Dish.js';
 
-const restaurantSchema = new Schema({
+const restaurantSchema = new mongoose.Schema({
   name: String,
   telephone: String,
   address: String,
-  dishes: [dishSchema],
+  coordinates: {
+    type: [Number], // [longitude, latitude]
+    index: '2dsphere' // Ensure the 2dsphere index is created
+  },
+  type: [String],
+  dishes: [dishSchema]
 });
 
 const Restaurant = model('restaurant', restaurantSchema);

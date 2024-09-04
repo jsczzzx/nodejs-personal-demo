@@ -20,7 +20,7 @@ mongoose.connect("mongodb+srv://zixinzhang0519:zzx971106@cluster0.avikpsa.mongod
 
 // Register route
 app.post('/register', async (req, res) => {
-	const { userName, mobile_no, email, password } = req.body;
+	const { userName, mobile_no, email, address, password } = req.body;
 
 	try {
 		const existingUser = await User.findOne({ email });
@@ -33,6 +33,7 @@ app.post('/register', async (req, res) => {
 			userName,
 			mobile_no,
 			email,
+			address,
 			password: hashedPassword,
 		});
 
@@ -121,7 +122,7 @@ app.get('/restaurants', authenticateToken, async (req, res) => {
 });
 
 
-app.post('/orders', async (req, res) => {
+app.post('/orders', authenticateToken, async (req, res) => {
 	const { userName, restaurantId, restaurantName, items, totalPrice, createdAt, updatedAt, status } = req.body;
 
 	try {
@@ -144,29 +145,81 @@ app.post('/orders', async (req, res) => {
 	}
 });
 
-// app.post('/restaurants', async (req, res) => {
-// 	const { name,telephone,address,dishes } = req.body;
+app.post('/restaurants', async (req, res) => {
+	const { name,telephone,address,coordinates,type,dishes } = req.body;
 
-// 	try {
-// 		const existingRestaurant = await User.findOne({ address });
-// 		if (existingRestaurant) {
-// 			return res.status(400).json({ message: 'Restaurant already exists' });
-// 		}
+	try {
+		const existingRestaurant = await User.findOne({ address });
+		if (existingRestaurant) {
+			return res.status(400).json({ message: 'Restaurant already exists' });
+		}
 
-// 		const restaurant = new Restaurant({
-// 			name,
-// 			telephone,
-// 			address,
-// 			dishes
-// 		});
+		const restaurant = new Restaurant({
+			name,
+			telephone,
+			address,
+			coordinates,
+			type,
+			dishes
+		});
 
-// 		await restaurant.save();
-// 		res.status(201).json({ message: 'Restaurant registered successfully' });
-// 	} catch (error) {
-// 		res.status(500).json({ message: 'Server error', error });
-// 	}
-// });
+		await restaurant.save();
+		res.status(201).json({ message: 'Restaurant registered successfully' });
+	} catch (error) {
+		res.status(500).json({ message: 'Server error', error });
+	}
+});
 
+
+app.get('/restaurants/search', async (req, res) => {
+  const { query, latitude, longitude, page = 1, limit = 10 } = req.query;
+
+  if (!latitude || !longitude) {
+    return res.status(400).json({ error: 'User location (latitude and longitude) is required' });
+  }
+
+  try {
+    const restaurantsWithDistances = await Restaurant.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: 'Point',
+            coordinates: [parseFloat(longitude), parseFloat(latitude)]
+          },
+          distanceField: 'distance',
+          spherical: true,
+          query: {
+            $or: [
+              { name: { $regex: query, $options: 'i' } },
+              { type: { $regex: query, $options: 'i' } },
+              { 'dishes.name': { $regex: query, $options: 'i' } }
+            ]
+          }
+        }
+      },
+      { $sort: { distance: 1 } },
+      { $skip: (page - 1) * limit },  // Skip previous pages
+      { $limit: parseInt(limit) }     // Limit results per page
+    ]);
+
+    const response = restaurantsWithDistances.map(restaurant => ({
+      restaurant: {
+        _id: restaurant._id,
+        name: restaurant.name,
+        telephone: restaurant.telephone,
+        address: restaurant.address,
+        coordinates: restaurant.coordinates,
+        type: restaurant.type,
+        dishes: restaurant.dishes,
+      },
+      distance: restaurant.distance / 1609.34
+    }));
+
+    res.json(response);
+  } catch (err) {
+    res.status(500).json({ error: 'An error occurred while searching for restaurants' });
+  }
+});
 
 
 
